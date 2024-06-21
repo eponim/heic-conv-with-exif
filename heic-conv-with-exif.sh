@@ -3,6 +3,16 @@
 # и пытается восстановить отсутствующие данные exif в самом файле
 # из прилагаемого к нему файла json
 
+
+# вспомогательная функция, возвращает номер позиции С КОНЦА искомой подстроки в исходной строке
+#   $1 - исходная строка
+#   $2 - искомая подстрока
+strindex() {
+  x="${1##*"$2"}"
+  [[ "$x" = "$1" ]] && echo -1 || echo "${#x}"
+}
+
+
 creator_work_email="eponim@mail.ru"
 creator_work_url="https://www.postogram.org"
 magic_quality_persent=87
@@ -31,19 +41,21 @@ loop_folder_recurse() {
            if [ -f "$json_file_name" ];then
               echo "$json_file_name"
            else
-              # проверяем имя файла на номер дубликата в скобках перед расширением HEIC, потому что:
+              # проверяем имя файла на номер дубликата в скобках перед расширением , потому что (например):
               # IMG_1173(1).HEIC -> IMG_1173.HEIC(1).json !!!
-              echo "$json_file_name" not found!
+              b1_pos=$( strindex "$i" "(" )
+              b2_pos=$( strindex "$i" ")" )
+              json_file_name="${i:0:${#i}-b1_pos-1}"."${i##*.}""${i:${#i}-b1_pos-1:b1_pos-b2_pos+1}".json
+              if [ -f "$json_file_name" ];then
+                 echo "$json_file_name"
+              else
+                 json_file_name=""
+                 echo "$i" - JSON file not found!
+              fi
            fi
 
            # HEIC конвертируем в JPG и копируем, остальные просто копируем
            if ( [ "${i##*.}" = "HEIC" ] || [ "${i##*.}" = "heic" ] );then
-              # Copy HEIC to destination
-              #if ! [ -f "$dest_path${i:path_length}" ];then
-              #   cp "$i" "$dest_path${i:path_length}"
-              #   echo "$i" "$dest_path${i:path_length}"
-              #fi
-
               # конвертируем HEIC в JPG
               jpg_file_name="$dest_path${i:path_length}"
               jpg_file_name="${jpg_file_name::-4}jpg"
@@ -70,3 +82,9 @@ loop_folder_recurse() {
 loop_folder_recurse "$path"
 echo "Proseed: dir=$cnt_dir, files=$cnt_files"
 
+a="IMG_1173(1).HEIC"
+b=")"
+echo -e "\n$a"
+b1_pos=$( strindex "$a" "(" )
+b2_pos=$( strindex "$a" ")" )
+echo -e "${a:0:${#a}-b1_pos-1}"."${a##*.}""${a:${#a}-b1_pos-1:b1_pos-b2_pos+1}".json
