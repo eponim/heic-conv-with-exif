@@ -47,6 +47,8 @@ loop_folder_recurse() {
                            || [ "${i##*.}" = "mov" ] || [ "${i##*.}" = "MOV" ] \
                            || [ "${i##*.}" = "mp4" ] || [ "${i##*.}" = "MP4" ] );then
 
+#        elif [ -f "$i" ] && ( [ "${i##*.}" = "mov" ] || [ "${i##*.}" = "MOV" ] );then
+
            tmp_jpg_file="/dev/shm/tmp-heic-conv-with-exif.${i##*.}"
 
            # проверим, есть ли JSON файл к текущему файлу
@@ -77,12 +79,6 @@ loop_folder_recurse() {
               j_al=$( jq '.geoDataExif .altitude' "$json_file_name" )
            fi
 
-           # заменим расширение временного файла для видео-файлов (уже не надо)
-#           if ( [ "${i##*.}" = "MOV" ] || [ "${i##*.}" = "mov" ] || [ "${i##*.}" = "MP4" ] || [ "${i##*.}" = "mp4" ] );then
-#              tmp_jpg_file="${tmp_jpg_file::-3}${i##*.}"
-#              echo "Tmp jpg file: $tmp_jpg_file"
-#           fi
-
            #если у файла нет даты съёмки, то no_date="$no_date_path"
            no_date=""
 
@@ -98,7 +94,7 @@ loop_folder_recurse() {
            if ( [ "${i##*.}" = "MOV" ] || [ "${i##*.}" = "mov" ] || [ "${i##*.}" = "MP4" ] || [ "${i##*.}" = "mp4" ] );then
               f_dt=$( exiftool -fast -CreateDate -n "$tmp_jpg_file" )
               f_dt="${f_dt:34}"
-#              echo "$f_dt"
+#              echo "f_dt: $f_dt"
               if ( [ ${#f_dt} = 0 ] || [ "$f_dt" = "0000:00:00 00:00:00" ] );then
 #                 echo "MediaCreateDate"
                  f_dt=$( exiftool -fast -MediaCreateDate -n "$tmp_jpg_file" )
@@ -109,32 +105,11 @@ loop_folder_recurse() {
               fi
            else
               f_dt=$( exiftool -fast -DateTimeOriginal -n "$tmp_jpg_file" )
+              f_dt="${f_dt:34}"
            fi
            f_lt=$( exiftool -fast -GPSLatitude -n "$tmp_jpg_file" )
            f_lg=$( exiftool -fast -GPSLongitude -n "$tmp_jpg_file" )
            f_al=$( exiftool -fast -GPSAltitude -n "$tmp_jpg_file" )
-
-           # 1. Проверим, есть ли в фото дата съёмки, если нет - попоробуем взять из JSON
-           # 2. Установим дату создания файла равной дате съёмки
-#           echo -e "DateTimeOriginal: ${f_dt#*:}, ${#f_dt}, "$( date --date="@${j_dt//\"/}" +"%F %T")
-           if ( [ ${#f_dt} = 0 ] );then
-              no_date="$no_date_path"
-#              echo "Date from JSON: $j_dt ${#j_dt} $( date --date="@${j_dt//\"/}" +"%F %T")"
-              if ( [ -n "$j_dt" ] );then
-#                 echo "Try set JSON date"
-                 date_touch=$( date --date="@${j_dt//\"/}" +"%F %T")
-                 exiftool -DateTimeOriginal="$date_touch" "$tmp_jpg_file"
-                 touch -mad "$date_touch" "$tmp_jpg_file"
-                 no_date=""
-              fi
-           else
-              dt="${f_dt#*: }"
-              date1="${dt% *}"
-              date2="${date1//:/-}"
-              time1="${dt#* }"
-              date_touch=$( echo "$date2" "$time1" )
-              touch -mad "$date_touch" "$tmp_jpg_file"
-           fi
 
            # проверим, есть ли в фото GPS координаты, если нет - попоробуем взять из JSON
 #           echo -e "GPSLatitude:      $f_lt, ${#f_lt}, $j_lt"
@@ -151,6 +126,31 @@ loop_folder_recurse() {
               fi
            fi
 
+           # 1. Проверим, есть ли в фото дата съёмки, если нет - попоробуем взять из JSON
+           # 2. Установим дату создания файла равной дате съёмки
+#           echo -e "DateTimeOriginal: ${f_dt#*:}, ${#f_dt}, "$( date --date="@${j_dt//\"/}" +"%F %T")
+           if ( [ ${#f_dt} = 0 ] );then
+              no_date="$no_date_path"
+#              echo "Date from JSON: $j_dt ${#j_dt} $( date --date="@${j_dt//\"/}" +"%F %T")"
+              if ( [ -n "$j_dt" ] );then
+#                 echo "Try set JSON date"
+                 date_touch=$( date --date="@${j_dt//\"/}" +"%F %T")
+#                 echo "date_touch: $date_touch"
+                 exiftool -DateTimeOriginal="$date_touch" "$tmp_jpg_file"
+                 touch -mad "$date_touch" "$tmp_jpg_file"
+                 no_date=""
+              fi
+           else
+#              dt="${f_dt#*: }"
+              dt="$f_dt"
+              date1="${dt% *}"
+              date2="${date1//:/-}"
+              time1="${dt#* }"
+              date_touch=$( echo "$date2" "$time1" )
+#              echo "date_touch: $date_touch"
+              touch -mad "$date_touch" "$tmp_jpg_file"
+           fi
+
            # сформируем имя выходного файла
            jpg_file_name="$dest_path${i:path_length}"
            if ( [ "${i##*.}" = "HEIC" ] || [ "${i##*.}" = "heic" ] );then
@@ -161,13 +161,9 @@ loop_folder_recurse() {
            fn=$( basename "$jpg_file_name" )
            fn_lenth="${#fn}"
            jpg_file_name="${jpg_file_name::-fn_lenth-1}$no_date/$fn"
-           cp -v -f --preserve=all "$tmp_jpg_file" "$jpg_file_name"
+           cp -f --preserve=all "$tmp_jpg_file" "$jpg_file_name"
            echo -e "Скопирован          : $i -> $jpg_file_name\n"
 
-           # очистим временный файл
-#           if [ -f "$tmp_jpg_file" ];then
-#              rm "$tmp_jpg_file"
-#           fi
 
            cnt_files=$((cnt_files+1))
 #           echo -e "\n"
