@@ -16,6 +16,7 @@ strindex() {
 
 # временные файлы
 tmp_dir="/dev/shm/"
+tmp_pref=$RANDOM # префикс временного файла на случай зануска нескольких копий
 
 date_time_start=$( date +%s )
 creator_work_email="eponim@mail.ru"
@@ -49,7 +50,7 @@ loop_folder_recurse() {
 
 #        elif [ -f "$i" ] && ( [ "${i##*.}" = "mov" ] || [ "${i##*.}" = "MOV" ] );then
 
-           tmp_jpg_file="/dev/shm/tmp-heic-conv-with-exif.${i##*.}"
+           tmp_jpg_file="/dev/shm/tmp-heic-conv-with-exif-$tmp_pref.${i##*.}"
 
            # проверим, есть ли JSON файл к текущему файлу
            json_file_name="${i}.json"
